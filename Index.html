@@ -1,0 +1,980 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Neural Conditioning Protocol & Timer</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            obsidian: {
+              950: '#000000',
+              900: '#030305',
+              850: '#08080d',
+              800: '#111119',
+              750: '#181824',
+              700: '#202030',
+            },
+            roseNeon: {
+              400: '#fb7185',
+              500: '#f43f5e',
+              600: '#e11d48',
+              glow: '#ff2a6d',
+            }
+          },
+          boxShadow: {
+            'neon-pink': '0 0 25px -3px rgba(255, 42, 109, 0.45), 0 0 10px -2px rgba(244, 63, 94, 0.3)',
+            'neon-pink-lg': '0 0 40px -2px rgba(255, 42, 109, 0.6), 0 0 20px -2px rgba(244, 63, 94, 0.4)',
+            'subtle-pink': '0 0 15px -3px rgba(244, 63, 94, 0.15)',
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    *, *::before, *::after {
+      box-sizing: border-box;
+    }
+    html, body {
+      background-color: #000000;
+      color: #f1f5f9;
+      font-family: 'Inter', sans-serif;
+      overflow-x: hidden;
+      width: 100%;
+      max-width: 100%;
+      position: relative;
+      -webkit-tap-highlight-color: transparent;
+    }
+    .neon-border {
+      border: 1px solid rgba(255, 42, 109, 0.25);
+      transition: border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+    .neon-border:hover, .neon-border:focus-within {
+      border-color: rgba(255, 42, 109, 0.55);
+      box-shadow: 0 0 18px -4px rgba(255, 42, 109, 0.3);
+    }
+    .timer-ring-circle {
+      transition: stroke-dashoffset 0.4s ease, stroke 0.3s ease;
+      transform: rotate(-90deg);
+      transform-origin: 50% 50%;
+    }
+  </style>
+</head>
+<body class="min-h-screen bg-black text-slate-100 flex flex-col items-center p-3 sm:p-5 selection:bg-roseNeon-500 selection:text-white">
+
+  <!-- TOP APP HEADER -->
+  <header class="w-full max-w-2xl flex items-center justify-between py-3 px-4 rounded-2xl bg-black backdrop-blur-md neon-border mb-4">
+    <div class="flex items-center gap-2.5">
+      <div class="w-8 h-8 rounded-xl bg-gradient-to-tr from-roseNeon-600 to-pink-400 flex items-center justify-center shadow-neon-pink text-white font-black text-sm">
+        Ψ
+      </div>
+      <div>
+        <h1 class="text-sm sm:text-base font-bold tracking-tight text-white flex items-center gap-1.5">
+          Neural Conditioning
+          <span id="badgeTotalProtocolDuration" class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-roseNeon-500/10 text-roseNeon-400 border border-roseNeon-500/25">23-Min Protocol</span>
+        </h1>
+        <p class="text-[11px] text-slate-400 font-mono" id="headerAudioStatus">Model: eleven_flash_v2_5</p>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-2">
+      <button id="btnOpenCalibrate" class="px-3 py-1.5 rounded-xl bg-obsidian-800 hover:bg-obsidian-750 text-xs font-semibold text-rose-300 border border-roseNeon-500/30 hover:border-roseNeon-400 flex items-center gap-1.5 transition-all active:scale-95 shadow-subtle-pink">
+        <svg class="w-3.5 h-3.5 text-roseNeon-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path></svg>
+        <span>Edit Prompts & API</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- AUDIO STATUS & REPEAT SETTINGS BAR -->
+  <div class="w-full max-w-2xl bg-black rounded-2xl p-3 sm:p-4 neon-border mb-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+    <div class="flex items-center gap-3 overflow-hidden">
+      <div class="w-10 h-10 rounded-xl bg-obsidian-800 border border-roseNeon-500/20 flex items-center justify-center shrink-0 text-roseNeon-400">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 11a7 7 0 01-7 7m0 0a7 7 0 01-7-7m7 7v4m0 0H8m4 0h4m-4-8a3 3 0 100-6 3 3 0 000 6z"></path></svg>
+      </div>
+      <div class="truncate">
+        <div class="text-xs font-semibold text-white truncate" id="mediaFileName">ElevenLabs Modular Pipeline</div>
+        <div class="text-[11px] text-slate-400 font-mono flex items-center gap-2">
+          <span id="audioTrackTime">Spoken: 00:00 • Hold: 00:00</span>
+          <span class="w-1 h-1 rounded-full bg-slate-600"></span>
+          <span id="audioStatusPill" class="text-emerald-400 font-medium">Ready</span>
+        </div>
+      </div>
+    </div>
+    
+    <div class="shrink-0 flex items-center gap-2 self-end sm:self-center">
+      <button id="btnLoopToggle" class="px-2.5 py-1.5 rounded-xl bg-obsidian-800 hover:bg-obsidian-750 text-slate-300 hover:text-white border border-roseNeon-500/30 transition-all text-xs font-mono flex items-center gap-1.5">
+        <span id="loopStatusDot" class="w-2 h-2 rounded-full bg-roseNeon-400 animate-pulse"></span>
+        <span id="loopToggleText">Loop Cue: On (30s)</span>
+      </button>
+      <button id="btnAudioMute" class="p-2 rounded-xl bg-obsidian-800 hover:bg-obsidian-750 text-slate-300 hover:text-white border border-slate-700/50 transition-all text-xs">
+        <svg id="iconVolUnmuted" class="w-4 h-4 text-rose-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"></path></svg>
+        <svg id="iconVolMuted" class="w-4 h-4 text-slate-500 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15zM17 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2"></path></svg>
+      </button>
+    </div>
+  </div>
+
+  <!-- MAIN DOCK & CIRCULAR TIMER -->
+  <main class="w-full max-w-2xl bg-black rounded-3xl p-5 sm:p-7 neon-border mb-4 flex flex-col items-center relative overflow-hidden shadow-2xl">
+    <div class="flex items-center gap-2 mb-2">
+      <span id="phaseBadgeNumber" class="text-[11px] font-bold uppercase tracking-wider px-3 py-1 rounded-full bg-roseNeon-500/20 text-rose-300 border border-roseNeon-500/40 shadow-subtle-pink font-mono">
+        Phase 1 of 5
+      </span>
+      <span id="phaseCueTypeBadge" class="text-[11px] font-medium px-2.5 py-1 rounded-full bg-obsidian-800 text-slate-300 border border-slate-700/60 font-mono flex items-center gap-1.5">
+        <span class="w-2 h-2 rounded-full bg-roseNeon-500 animate-pulse"></span>
+        <span id="phaseCueStatusText">🎙️ Cue Standby</span>
+      </span>
+    </div>
+
+    <h2 id="phaseMainTitle" class="text-xl sm:text-2xl font-black text-white text-center tracking-tight mb-1">
+      Phase 1: Down-Regulation & Baseline
+    </h2>
+    <p id="phaseTimeWindowText" class="text-xs sm:text-sm text-slate-400 font-mono text-center mb-6">
+      Target Window: 00:00 to 03:00 (180s Total)
+    </p>
+
+    <!-- Circular Ring Countdown -->
+    <div class="relative w-56 h-56 sm:w-64 sm:h-64 flex items-center justify-center mb-4">
+      <svg class="w-full h-full" viewBox="0 0 220 220">
+        <circle cx="110" cy="110" r="92" stroke="#12121e" stroke-width="12" fill="none" />
+        <circle id="timerProgressCircle" class="timer-ring-circle" cx="110" cy="110" r="92" stroke="url(#pinkGradient)" stroke-width="12" stroke-linecap="round" fill="none" stroke-dasharray="578.05" stroke-dashoffset="0" />
+        <defs>
+          <linearGradient id="pinkGradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#ff2a6d" />
+            <stop offset="100%" stop-color="#f43f5e" />
+          </linearGradient>
+        </defs>
+      </svg>
+
+      <div class="absolute inset-0 flex flex-col items-center justify-center text-center">
+        <span class="text-[11px] uppercase tracking-widest text-rose-300/80 font-mono font-semibold">Phase Remaining</span>
+        <div id="countdownMMSS" class="text-4xl sm:text-5xl font-black font-mono tracking-tight text-white drop-shadow-[0_0_15px_rgba(255,42,109,0.5)]">
+          03:00
+        </div>
+        <div class="flex items-center gap-1.5 mt-1 text-xs font-mono text-slate-400">
+          <span id="sessionOverallMMSS">Protocol: 00:00 / 23:00</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Spoken Cue Segment Banner -->
+    <div class="w-full max-w-md bg-obsidian-950/70 border border-roseNeon-500/20 rounded-xl px-3.5 py-2 mb-6 flex items-center justify-between text-xs font-mono">
+      <div class="flex items-center gap-2">
+        <span class="text-roseNeon-400">Next Reminder:</span>
+        <span id="nextLoopCountdown" class="text-slate-200">30s</span>
+      </div>
+      <div id="holdStatusIndicator" class="text-[11px] text-slate-400 flex items-center gap-1">
+        <span>State:</span>
+        <span id="repeatStatusLabel" class="text-rose-300 font-semibold">Standby</span>
+      </div>
+    </div>
+
+    <!-- CONTROLS DOCK -->
+    <div class="w-full flex flex-col items-center justify-center gap-3">
+      <div class="flex items-center justify-center gap-2 sm:gap-3 flex-wrap max-w-full">
+        <button id="btnRewind10" class="px-5 sm:px-6 py-2.5 rounded-2xl bg-obsidian-800 hover:bg-obsidian-750 text-slate-200 hover:text-white border border-roseNeon-500/25 hover:border-roseNeon-400 text-xs font-mono font-bold flex items-center gap-1.5 transition-all active:scale-95 shadow-sm">
+          <span>-10s</span>
+        </button>
+        <button id="btnForward10" class="px-5 sm:px-6 py-2.5 rounded-2xl bg-obsidian-800 hover:bg-obsidian-750 text-slate-200 hover:text-white border border-roseNeon-500/25 hover:border-roseNeon-400 text-xs font-mono font-bold flex items-center gap-1.5 transition-all active:scale-95 shadow-sm">
+          <span>+10s</span>
+        </button>
+      </div>
+
+      <button id="btnTogglePlay" class="px-8 py-3.5 rounded-2xl bg-gradient-to-r from-roseNeon-600 via-roseNeon-500 to-pink-500 hover:from-roseNeon-500 hover:to-pink-400 text-white font-black text-sm tracking-wide shadow-neon-pink-lg flex items-center gap-2.5 active:scale-95 transition-all">
+        <svg id="iconPlay" class="w-5 h-5 fill-current" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"></path></svg>
+        <svg id="iconPause" class="w-5 h-5 fill-current hidden" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"></path></svg>
+        <span id="playButtonText">Start Session</span>
+      </button>
+
+      <div class="flex items-center justify-center gap-2 sm:gap-3 flex-wrap max-w-full">
+        <button id="btnPrevSection" class="px-3.5 sm:px-4 py-2 rounded-2xl bg-obsidian-800 hover:bg-obsidian-750 text-slate-300 hover:text-white border border-slate-700/60 hover:border-roseNeon-400/50 text-xs font-semibold flex items-center gap-1.5 transition-all active:scale-95">
+          <span>Prev Section</span>
+        </button>
+        <button id="btnRepeatInstructionNow" class="px-3.5 sm:px-4 py-2 rounded-2xl bg-obsidian-800 hover:bg-obsidian-750 text-rose-300 hover:text-white border border-roseNeon-500/30 hover:border-roseNeon-400/60 text-xs font-semibold flex items-center gap-1.5 transition-all active:scale-95">
+          <span>🔁 Replay Cue</span>
+        </button>
+        <button id="btnForwardSection" class="px-3.5 sm:px-4 py-2 rounded-2xl bg-obsidian-800 hover:bg-obsidian-750 text-slate-300 hover:text-white border border-slate-700/60 hover:border-roseNeon-400/50 text-xs font-semibold flex items-center gap-1.5 transition-all active:scale-95">
+          <span>Forward Section</span>
+        </button>
+      </div>
+
+      <button id="btnResetSession" class="mt-1 text-[11px] text-slate-500 hover:text-rose-300 font-mono transition-colors">
+        ↺ Reset Session to 00:00
+      </button>
+    </div>
+  </main>
+
+  <!-- PROTOCOL GUIDANCE CARDS -->
+  <section class="w-full max-w-2xl bg-black rounded-3xl p-5 sm:p-6 neon-border mb-4">
+    <h3 class="text-xs font-bold uppercase tracking-wider text-roseNeon-400 font-mono mb-4">
+      Active Phase Protocol Guidance
+    </h3>
+
+    <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+      <div class="bg-obsidian-850 p-3.5 rounded-2xl border border-slate-800/80">
+        <div class="text-rose-300 text-xs font-bold mb-1">🖐️ Tactile Vector & Motion</div>
+        <p id="cardTactileText" class="text-xs text-slate-300 leading-relaxed"></p>
+      </div>
+
+      <div class="bg-obsidian-850 p-3.5 rounded-2xl border border-slate-800/80">
+        <div class="text-rose-300 text-xs font-bold mb-1">🫁 Respiration Cadence</div>
+        <p id="cardRespirationText" class="text-xs text-slate-300 leading-relaxed font-mono"></p>
+      </div>
+
+      <div class="bg-obsidian-850 p-3.5 rounded-2xl border border-slate-800/80">
+        <div class="text-rose-300 text-xs font-bold mb-1">🧘 Posture & Ergonomics</div>
+        <p id="cardPostureText" class="text-xs text-slate-300 leading-relaxed"></p>
+      </div>
+
+      <div class="bg-obsidian-850 p-3.5 rounded-2xl border border-slate-800/80">
+        <div class="text-rose-300 text-xs font-bold mb-1">⚡ Autonomic Check</div>
+        <p id="cardAutonomicText" class="text-xs text-slate-300 leading-relaxed"></p>
+      </div>
+    </div>
+
+    <div class="bg-obsidian-950/80 rounded-2xl border border-roseNeon-500/20 p-3 text-xs">
+      <div class="font-semibold text-rose-300 flex items-center justify-between mb-1.5">
+        <span>🔁 Live Phase Voice Instruction:</span>
+        <span id="activePhaseAudioLengthLabel" class="text-[10px] text-slate-500 font-mono">Audio Length: 0s</span>
+      </div>
+      <p id="cardLoopingText" class="text-slate-300 leading-relaxed italic font-serif"></p>
+    </div>
+  </section>
+
+  <!-- PROTOCOL ROADMAP -->
+  <section class="w-full max-w-2xl bg-black rounded-3xl p-5 sm:p-6 neon-border mb-8">
+    <div class="flex items-center justify-between mb-4">
+      <h3 class="text-xs font-bold uppercase tracking-wider text-roseNeon-400 font-mono">
+        Dynamic Protocol Roadmap
+      </h3>
+      <span id="roadmapSummaryBadge" class="text-[11px] text-slate-400 font-mono">5 Phases • 23m Total</span>
+    </div>
+
+    <div id="phasesTimelineContainer" class="space-y-2.5"></div>
+  </section>
+
+  <!-- CALIBRATION & ELEVENLABS MODAL -->
+  <div id="calibrateModal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="w-full max-w-lg bg-obsidian-900 border border-roseNeon-500/40 rounded-3xl p-5 sm:p-6 shadow-neon-pink-lg max-h-[90vh] overflow-y-auto">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-800 mb-4">
+        <div>
+          <h3 class="text-base font-bold text-white flex items-center gap-2">
+            <span>⚙️</span>
+            <span>Modular Instruction & Audio Calibration</span>
+          </h3>
+          <p class="text-xs text-slate-400">Timers automatically adjust when instructions or durations are edited</p>
+        </div>
+        <button id="btnCloseCalibrate" class="p-1.5 rounded-xl bg-obsidian-800 hover:bg-obsidian-750 text-slate-400 hover:text-white">
+          ✕
+        </button>
+      </div>
+
+      <!-- ElevenLabs Integration Box -->
+      <div class="bg-obsidian-950 p-3.5 rounded-2xl border border-roseNeon-500/30 mb-5 space-y-3">
+        <div class="flex items-center justify-between">
+          <span class="text-xs font-bold text-rose-300 font-mono">ElevenLabs API Config</span>
+          <span id="elevenLabsStatusTag" class="text-[10px] text-slate-500 font-mono">API Key Required</span>
+        </div>
+        <div>
+          <label class="text-[10px] text-slate-400 block mb-1">API Key</label>
+          <input type="password" id="inpElevenApiKey" placeholder="xi-api-key-..." class="w-full px-3 py-1.5 bg-obsidian-850 rounded-xl border border-slate-700 text-xs text-white font-mono focus:border-roseNeon-400 outline-none" />
+        </div>
+        <div>
+          <label class="text-[10px] text-slate-400 block mb-1">Voice ID (Default: 4tRn1lSkEn13EVTuqb0g)</label>
+          <input type="text" id="inpElevenVoiceId" value="4tRn1lSkEn13EVTuqb0g" class="w-full px-3 py-1.5 bg-obsidian-850 rounded-xl border border-slate-700 text-xs text-white font-mono focus:border-roseNeon-400 outline-none" />
+        </div>
+        <button id="btnGenerateAllClips" class="w-full py-2.5 rounded-xl bg-gradient-to-r from-roseNeon-600 to-rose-500 hover:from-roseNeon-500 hover:to-pink-400 text-white font-bold text-xs shadow-neon-pink flex items-center justify-center gap-2">
+          <span>🎙️ Synthesize All 5 Phases (ElevenLabs)</span>
+        </button>
+      </div>
+
+      <div class="bg-obsidian-950 p-3.5 rounded-2xl border border-slate-800 mb-4 flex items-center justify-between text-xs font-mono">
+        <div>
+          <span class="text-slate-400">Loop Reminders During Holds: </span>
+          <select id="selLoopInterval" class="bg-obsidian-800 text-rose-300 font-bold px-2 py-1 rounded border border-roseNeon-500/30">
+            <option value="20">Every 20s</option>
+            <option value="30" selected>Every 30s</option>
+            <option value="45">Every 45s</option>
+            <option value="60">Every 60s</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="calibPhaseList" class="space-y-4 mb-5"></div>
+
+      <div class="flex items-center justify-end gap-2 pt-2 border-t border-slate-800">
+        <button id="btnResetDefaults" class="px-3 py-1.5 rounded-xl bg-obsidian-800 hover:bg-obsidian-750 text-xs text-slate-400 hover:text-slate-200">
+          Reset Defaults
+        </button>
+        <button id="btnSaveConfig" class="px-4 py-1.5 rounded-xl bg-gradient-to-r from-roseNeon-600 to-rose-500 text-xs font-bold text-white shadow-neon-pink">
+          Close & Save
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const DEFAULT_PHASES = [
+      {
+        id: 1,
+        title: "Phase 1: Down-Regulation & Baseline",
+        durationMinutes: 3,
+        durationSeconds: 180,
+        spokenDuration: 0,
+        holdDuration: 180,
+        instructionText: "Phase one. Down-regulation and somatosensory baseline. Settle flat on your back with your head resting on a flat pillow. Let your feet roll outward naturally at forty-five-degree angles to fully unlock your adductors and inner thighs. Slacken your jaw and release the back of your neck into the mattress. Inhale through your nose for four seconds, expanding your lower abdomen, then release an audible, slow eight-second exhale through parted lips. Zero tactile contact. Maintain this breath cadence until your resting pulse slows and your palms feel warm.",
+        tactile: "Do not initiate contact until resting pulse slows and palms feel warm.",
+        respiration: "4s Inhale through nose (lower belly expands) • 8s audible exhale through parted lips (slacken jaw).",
+        posture: "Supine flat on back with flat pillow under head. Feet fall outward at 45° to unlock adductors.",
+        autonomic: "Wait for resting pulse to settle and zero micro-shivers."
+      },
+      {
+        id: 2,
+        title: "Phase 2: Peripheral Mapping & Dermatome Priming",
+        durationMinutes: 5,
+        durationSeconds: 300,
+        spokenDuration: 0,
+        holdDuration: 300,
+        instructionText: "Phase two. Peripheral mapping and dermatome priming. Bring the dry, feather-light pads of your index and middle fingers to your lateral ribs, just below the armpits. Begin wide, slow inward circular sweeps across the pectoral frame toward your sternum. Keep a strict two-inch margin away from the areola. Time each inward stroke to your long eight-second exhale. Maintain zero pressure on the skin—anchor your entire focus to the surface friction beneath your finger pads, tracking the intercostal nerves for faint warmth or tingling.",
+        tactile: "Dry, feather-light pads of index & middle fingers. Wide inward circular paths from ribs under armpits toward sternum. 2-inch areolar margin.",
+        respiration: "Time inward sweep to the long 8-second exhale. Focus on skin friction.",
+        posture: "Maintain relaxed supine posture, blanket over lower torso.",
+        autonomic: "Tracking 3rd, 4th, 5th intercostal nerves for faint static or warmth."
+      },
+      {
+        id: 3,
+        title: "Phase 3: The Areolar Shift & T4 Focus",
+        durationMinutes: 6,
+        durationSeconds: 360,
+        spokenDuration: 0,
+        holdDuration: 360,
+        instructionText: "Phase three. The areolar shift and T-four focus. Narrow your radius and spiral inward directly to the areolar base. Alternate between two vectors. First, light rolling: place the areolar margin between the side of your thumb and the pad of your index finger at one to two cycles per second with minimal pressure. Second, micro-brushing: brisk, feather-light flicking motions across the apex using flat finger pads. Keep your core and abdomen completely limp. Do not brace or flex to chase sensation; let the localized response build naturally.",
+        tactile: "Spiral inward to areolar base. Rolling: thumb side and index pad (1-2 cycles/sec). Micro-brushing: brisk flicking across apex.",
+        respiration: "Deep rhythmic abdominal breathing without tensing core.",
+        posture: "Remain completely limp. Do not tense core to amplify sensations.",
+        autonomic: "T4 piloerection (firming), warmth down throat, or subtle spinal shivers."
+      },
+      {
+        id: 4,
+        title: "Phase 4: Rhythmic Amplification & Somatic Expansion",
+        durationMinutes: 6,
+        durationSeconds: 360,
+        spokenDuration: 0,
+        holdDuration: 360,
+        instructionText: "Phase four. Rhythmic amplification and somatic expansion. Increase pressure from feather-light contact to firm, rhythmic traction alternating with sustained palm circles. Your hands remain strictly locked to your upper chest. As autonomic intensity rises, engage diaphragmatic breathing. On each inhale, mentally draw tension upward from the pelvic floor into the center of your sternum. On each long exhale, let that heat expand across your upper torso and shoulders. Zero contact below the navel. Keep your hips neutral.",
+        tactile: "Firm rhythmic traction alternating with sustained circular palm pressure. Hands remain LOCKED strictly to upper chest.",
+        respiration: "Slow diaphragmatic inhale mentally drawing tension upward from groin into chest center; smooth exhale across torso.",
+        posture: "Counter-action: Prevent involuntary pelvic pumping or impulse to touch genitals.",
+        autonomic: "Transmutation wave: rerouting pelvic arousal upward across torso."
+      },
+      {
+        id: 5,
+        title: "Phase 5: The Hard Cut & Pelvic Clearance",
+        durationMinutes: 3,
+        durationSeconds: 180,
+        spokenDuration: 0,
+        holdDuration: 180,
+        instructionText: "Phase five. The hard cut and pelvic clearance. Immediate stop. Break all tactile contact now. Place your arms flat at your sides with palms facing upward. Smoothly elevate your legs onto the wall or headboard, keeping your hips six to twelve inches away from the base. Rest both hands flat on your lower abdomen. Take five slow cycles of a four-second inhale and an eight-second exhale, letting gravity drain pelvic circulation. Once the timer completes, slide your legs down, turn onto your side, and drift straight to sleep.",
+        tactile: "IMMEDIATE STOP. Arms flat at sides, palms facing up. Do not linger or touch below navel.",
+        respiration: "5 consecutive cycles of 4s inhale / 8s exhale with hands flat on lower abdomen.",
+        posture: "Wall drainage: legs up onto headboard or wall (hips 6-12 inches away). Then slide down into sleep position.",
+        autonomic: "Congested pulsing in groin quiets down as circulation clears."
+      }
+    ];
+
+    // Clear stale cached configs and start fresh
+    localStorage.removeItem('neural_protocol_phases_v8');
+    let phases = DEFAULT_PHASES;
+    let currentPhaseIndex = 0;
+    let phaseTimeRemaining = phases[0].durationSeconds;
+    let isRunning = false;
+    let timerInterval = null;
+
+    let phaseAudioClips = {};
+    let isSpokenCueActive = false;
+    let isLoopEnabled = true;
+    let loopIntervalSeconds = parseInt(localStorage.getItem('neural_loop_interval') || '30', 10);
+    let secondsSinceLastSpokenReminder = 0;
+    let isMuted = false;
+
+    function formatMMSS(sec) {
+      sec = Math.max(0, Math.floor(sec));
+      const m = Math.floor(sec / 60);
+      const s = sec % 60;
+      return `${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
+    }
+
+    function calculateTotalProtocolSeconds() {
+      return phases.reduce((acc, p) => acc + p.durationSeconds, 0);
+    }
+
+    function getElapsedSessionSeconds() {
+      let cum = 0;
+      for (let i = 0; i < currentPhaseIndex; i++) {
+        cum += phases[i].durationSeconds;
+      }
+      return cum + (phases[currentPhaseIndex].durationSeconds - phaseTimeRemaining);
+    }
+
+    // DOM Elements
+    const btnTogglePlay = document.getElementById('btnTogglePlay');
+    const iconPlay = document.getElementById('iconPlay');
+    const iconPause = document.getElementById('iconPause');
+    const playButtonText = document.getElementById('playButtonText');
+    const btnPrevSection = document.getElementById('btnPrevSection');
+    const btnForwardSection = document.getElementById('btnForwardSection');
+    const btnRewind10 = document.getElementById('btnRewind10');
+    const btnForward10 = document.getElementById('btnForward10');
+    const btnResetSession = document.getElementById('btnResetSession');
+    const btnRepeatInstructionNow = document.getElementById('btnRepeatInstructionNow');
+
+    const countdownMMSS = document.getElementById('countdownMMSS');
+    const sessionOverallMMSS = document.getElementById('sessionOverallMMSS');
+    const timerProgressCircle = document.getElementById('timerProgressCircle');
+    const phaseBadgeNumber = document.getElementById('phaseBadgeNumber');
+    const phaseMainTitle = document.getElementById('phaseMainTitle');
+    const phaseTimeWindowText = document.getElementById('phaseTimeWindowText');
+    const phaseCueTypeBadge = document.getElementById('phaseCueTypeBadge');
+    const phaseCueStatusText = document.getElementById('phaseCueStatusText');
+    const nextLoopCountdown = document.getElementById('nextLoopCountdown');
+    const repeatStatusLabel = document.getElementById('repeatStatusLabel');
+
+    const cardTactileText = document.getElementById('cardTactileText');
+    const cardRespirationText = document.getElementById('cardRespirationText');
+    const cardPostureText = document.getElementById('cardPostureText');
+    const cardAutonomicText = document.getElementById('cardAutonomicText');
+    const cardLoopingText = document.getElementById('cardLoopingText');
+    const activePhaseAudioLengthLabel = document.getElementById('activePhaseAudioLengthLabel');
+    const badgeTotalProtocolDuration = document.getElementById('badgeTotalProtocolDuration');
+    const roadmapSummaryBadge = document.getElementById('roadmapSummaryBadge');
+
+    const audioTrackTime = document.getElementById('audioTrackTime');
+    const audioStatusPill = document.getElementById('audioStatusPill');
+    const headerAudioStatus = document.getElementById('headerAudioStatus');
+    const btnAudioMute = document.getElementById('btnAudioMute');
+    const iconVolUnmuted = document.getElementById('iconVolUnmuted');
+    const iconVolMuted = document.getElementById('iconVolMuted');
+    const btnLoopToggle = document.getElementById('btnLoopToggle');
+    const loopStatusDot = document.getElementById('loopStatusDot');
+    const loopToggleText = document.getElementById('loopToggleText');
+    const phasesTimelineContainer = document.getElementById('phasesTimelineContainer');
+
+    const btnOpenCalibrate = document.getElementById('btnOpenCalibrate');
+    const btnCloseCalibrate = document.getElementById('btnCloseCalibrate');
+    const calibrateModal = document.getElementById('calibrateModal');
+    const calibPhaseList = document.getElementById('calibPhaseList');
+    const btnSaveConfig = document.getElementById('btnSaveConfig');
+    const btnResetDefaults = document.getElementById('btnResetDefaults');
+    const selLoopInterval = document.getElementById('selLoopInterval');
+
+    const inpElevenApiKey = document.getElementById('inpElevenApiKey');
+    const inpElevenVoiceId = document.getElementById('inpElevenVoiceId');
+    const btnGenerateAllClips = document.getElementById('btnGenerateAllClips');
+    const elevenLabsStatusTag = document.getElementById('elevenLabsStatusTag');
+
+    const savedApiKey = localStorage.getItem('elevenlabs_api_key') || '';
+    const savedVoiceId = localStorage.getItem('elevenlabs_voice_id') || '4tRn1lSkEn13EVTuqb0g';
+    inpElevenApiKey.value = savedApiKey;
+    inpElevenVoiceId.value = savedVoiceId;
+    if (savedApiKey) {
+      elevenLabsStatusTag.textContent = "API Key Active";
+      elevenLabsStatusTag.className = "text-[10px] text-emerald-400 font-mono";
+    }
+
+    async function generateModularPhaseAudio(phaseIndex, statusCallback = null) {
+      const apiKey = inpElevenApiKey.value.trim();
+      const voiceId = inpElevenVoiceId.value.trim() || '4tRn1lSkEn13EVTuqb0g';
+      const p = phases[phaseIndex];
+
+      if (!apiKey) {
+        alert("Enter your ElevenLabs API Key in settings first.");
+        return false;
+      }
+
+      if (statusCallback) statusCallback("⏳ Synthesizing...");
+
+      try {
+        const response = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'xi-api-key': apiKey
+          },
+          body: JSON.stringify({
+            text: p.instructionText,
+            model_id: "eleven_flash_v2_5",
+            voice_settings: { stability: 0.5, similarity_boost: 0.85 }
+          })
+        });
+
+        if (!response.ok) {
+          const errData = await response.json().catch(() => ({}));
+          throw new Error(errData.detail?.message || `HTTP ${response.status}`);
+        }
+
+        const blob = await response.blob();
+        const clipUrl = URL.createObjectURL(blob);
+        const audio = new Audio(clipUrl);
+        audio.muted = isMuted;
+
+        await new Promise((resolve) => {
+          audio.onloadedmetadata = () => {
+            p.spokenDuration = Math.ceil(audio.duration);
+            p.holdDuration = Math.max(0, p.durationSeconds - p.spokenDuration);
+            phaseAudioClips[phaseIndex] = audio;
+            resolve();
+          };
+        });
+
+        localStorage.setItem('neural_protocol_phases_v8', JSON.stringify(phases));
+        if (statusCallback) statusCallback(`✓ Ready (${p.spokenDuration}s)`);
+        updateUI();
+        return true;
+      } catch (err) {
+        console.error(`ElevenLabs generation error (Phase ${phaseIndex + 1}):`, err);
+        if (statusCallback) statusCallback(`✕ Error: ${err.message}`);
+        return false;
+      }
+    }
+
+    btnGenerateAllClips.onclick = async () => {
+      const apiKey = inpElevenApiKey.value.trim();
+      if (!apiKey) {
+        alert("Please paste your ElevenLabs API Key first.");
+        return;
+      }
+
+      localStorage.setItem('elevenlabs_api_key', apiKey);
+      localStorage.setItem('elevenlabs_voice_id', inpElevenVoiceId.value.trim());
+
+      btnGenerateAllClips.disabled = true;
+
+      for (let i = 0; i < phases.length; i++) {
+        btnGenerateAllClips.innerHTML = `<span>⏳ Synthesizing Phase ${i + 1} of ${phases.length}...</span>`;
+        await generateModularPhaseAudio(i);
+      }
+
+      btnGenerateAllClips.innerHTML = `<span>✓ All 5 Phases Generated!</span>`;
+      btnGenerateAllClips.disabled = false;
+      setTimeout(() => {
+        btnGenerateAllClips.innerHTML = `<span>🎙️ Synthesize All 5 Phases (ElevenLabs)</span>`;
+      }, 3500);
+      updateUI();
+    };
+
+    function playActivePhaseAudioClip() {
+      const audio = phaseAudioClips[currentPhaseIndex];
+      if (!audio || isMuted) {
+        isSpokenCueActive = false;
+        updateUI();
+        return;
+      }
+
+      Object.values(phaseAudioClips).forEach(a => {
+        a.pause();
+        a.currentTime = 0;
+      });
+
+      audio.currentTime = 0;
+      audio.muted = isMuted;
+      audio.play().then(() => {
+        isSpokenCueActive = true;
+        repeatStatusLabel.textContent = "Speaking";
+        updateUI();
+      }).catch(err => {
+        console.warn("Autoplay restriction:", err);
+        isSpokenCueActive = false;
+        updateUI();
+      });
+
+      audio.onended = () => {
+        isSpokenCueActive = false;
+        secondsSinceLastSpokenReminder = 0;
+        repeatStatusLabel.textContent = "Hold Active";
+        updateUI();
+      };
+    }
+
+    function renderTimeline() {
+      phasesTimelineContainer.innerHTML = '';
+      let cumulative = 0;
+
+      phases.forEach((p, index) => {
+        const startSec = cumulative;
+        const endSec = cumulative + p.durationSeconds;
+        cumulative = endSec;
+
+        const isCurrent = index === currentPhaseIndex;
+        const isCompleted = index < currentPhaseIndex;
+        const clipAttached = !!phaseAudioClips[index];
+
+        const item = document.createElement('div');
+        item.className = `p-3 rounded-2xl border transition-all cursor-pointer flex items-center justify-between gap-2.5 ${
+          isCurrent
+            ? 'bg-roseNeon-500/10 border-roseNeon-500/50 shadow-neon-pink'
+            : isCompleted
+            ? 'bg-obsidian-850/50 border-slate-800 text-slate-500'
+            : 'bg-obsidian-850 border-slate-800/80 hover:border-slate-700 text-slate-300'
+        }`;
+
+        item.onclick = () => jumpToPhase(index);
+
+        item.innerHTML = `
+          <div class="flex items-center gap-3">
+            <div class="w-7 h-7 rounded-xl flex items-center justify-center text-xs font-mono font-bold ${
+              isCurrent ? 'bg-roseNeon-500 text-white' : isCompleted ? 'bg-slate-800 text-slate-400' : 'bg-obsidian-800 text-rose-300'
+            }">
+              ${p.id}
+            </div>
+            <div>
+              <div class="text-xs font-semibold ${isCurrent ? 'text-white' : 'text-slate-300'}">
+                ${p.title}
+              </div>
+              <div class="text-[10px] text-slate-400 font-mono">
+                ${formatMMSS(startSec)} - ${formatMMSS(endSec)} (${p.durationMinutes}m) • Spoken: ${p.spokenDuration || 0}s • Hold: ${formatMMSS(p.holdDuration || p.durationSeconds)}
+              </div>
+            </div>
+          </div>
+          <div class="text-[11px] font-mono shrink-0 ${isCurrent ? 'text-roseNeon-400 font-bold' : 'text-slate-500'}">
+            ${isCurrent ? (isSpokenCueActive ? '🎙️ Cue' : '⏱️ Hold') : (isCompleted ? '✓ Done' : (clipAttached ? 'Audio ✓' : `${p.durationMinutes}m`))}
+          </div>
+        `;
+        phasesTimelineContainer.appendChild(item);
+      });
+    }
+
+    function updateUI() {
+      const curr = phases[currentPhaseIndex];
+      const totalSec = calculateTotalProtocolSeconds();
+      const elapsedSec = getElapsedSessionSeconds();
+
+      countdownMMSS.textContent = formatMMSS(phaseTimeRemaining);
+      sessionOverallMMSS.textContent = `Protocol: ${formatMMSS(elapsedSec)} / ${formatMMSS(totalSec)}`;
+
+      badgeTotalProtocolDuration.textContent = `${Math.round(totalSec / 60)}-Min Protocol`;
+      roadmapSummaryBadge.textContent = `${phases.length} Phases • ${Math.round(totalSec / 60)}m Total`;
+
+      phaseBadgeNumber.textContent = `Phase ${curr.id} of ${phases.length}`;
+      phaseMainTitle.textContent = curr.title;
+
+      let cumStart = 0;
+      for (let i = 0; i < currentPhaseIndex; i++) cumStart += phases[i].durationSeconds;
+      const cumEnd = cumStart + curr.durationSeconds;
+      phaseTimeWindowText.textContent = `Target Window: ${formatMMSS(cumStart)} to ${formatMMSS(cumEnd)} (${curr.durationMinutes}m Total)`;
+
+      const remainingToNextLoop = Math.max(0, loopIntervalSeconds - secondsSinceLastSpokenReminder);
+      nextLoopCountdown.textContent = isLoopEnabled ? `${remainingToNextLoop}s` : 'Off';
+
+      cardTactileText.textContent = curr.tactile;
+      cardRespirationText.textContent = curr.respiration;
+      cardPostureText.textContent = curr.posture;
+      cardAutonomicText.textContent = curr.autonomic;
+      cardLoopingText.textContent = `"${curr.instructionText}"`;
+      activePhaseAudioLengthLabel.textContent = `Spoken: ${curr.spokenDuration || 0}s • Practice Hold: ${formatMMSS(curr.holdDuration || curr.durationSeconds)}`;
+
+      audioTrackTime.textContent = `Spoken: ${curr.spokenDuration || 0}s • Hold: ${formatMMSS(curr.holdDuration || curr.durationSeconds)}`;
+      audioStatusPill.textContent = phaseAudioClips[currentPhaseIndex] ? "ElevenLabs Voice Ready" : "Unsynthesized (Silent Mode)";
+
+      const circleCircumference = 578.05;
+      const progressFraction = (curr.durationSeconds - phaseTimeRemaining) / curr.durationSeconds;
+      const offset = circleCircumference * (1 - progressFraction);
+      timerProgressCircle.style.strokeDashoffset = Math.max(0, offset);
+
+      if (isSpokenCueActive) {
+        phaseCueStatusText.textContent = "🎙️ ElevenLabs Spoken Guidance";
+        phaseCueTypeBadge.className = "text-[11px] font-medium px-2.5 py-1 rounded-full bg-roseNeon-500/20 text-rose-300 border border-roseNeon-500/40 font-mono flex items-center gap-1.5";
+      } else {
+        phaseCueStatusText.textContent = isLoopEnabled ? "🔁 Reminders Active (Hold)" : "⏱️ Practice Hold Active";
+        phaseCueTypeBadge.className = "text-[11px] font-medium px-2.5 py-1 rounded-full bg-obsidian-800 text-slate-300 border border-slate-700/60 font-mono flex items-center gap-1.5";
+      }
+
+      renderTimeline();
+    }
+
+    function tickSecond() {
+      if (phaseTimeRemaining > 0) {
+        phaseTimeRemaining--;
+
+        if (!isSpokenCueActive && isLoopEnabled && phaseAudioClips[currentPhaseIndex]) {
+          secondsSinceLastSpokenReminder++;
+          if (secondsSinceLastSpokenReminder >= loopIntervalSeconds) {
+            playActivePhaseAudioClip();
+            secondsSinceLastSpokenReminder = 0;
+          }
+        }
+
+        updateUI();
+      } else {
+        if (currentPhaseIndex < phases.length - 1) {
+          currentPhaseIndex++;
+          phaseTimeRemaining = phases[currentPhaseIndex].durationSeconds;
+          secondsSinceLastSpokenReminder = 0;
+          playActivePhaseAudioClip();
+          updateUI();
+        } else {
+          pauseSession();
+          countdownMMSS.textContent = "00:00";
+          headerAudioStatus.textContent = "Protocol Complete";
+          alert("Neural Conditioning Protocol complete. Exit to sleep position.");
+        }
+      }
+    }
+
+    function playSession() {
+      isRunning = true;
+      iconPlay.classList.add('hidden');
+      iconPause.classList.remove('hidden');
+      playButtonText.textContent = "Pause Session";
+      headerAudioStatus.textContent = "Session Active";
+
+      if (phaseTimeRemaining === phases[currentPhaseIndex].durationSeconds) {
+        playActivePhaseAudioClip();
+      }
+
+      clearInterval(timerInterval);
+      timerInterval = setInterval(tickSecond, 1000);
+      updateUI();
+    }
+
+    function pauseSession() {
+      isRunning = false;
+      iconPlay.classList.remove('hidden');
+      iconPause.classList.add('hidden');
+      playButtonText.textContent = "Resume Session";
+      headerAudioStatus.textContent = "Session Paused";
+
+      clearInterval(timerInterval);
+      if (phaseAudioClips[currentPhaseIndex]) {
+        phaseAudioClips[currentPhaseIndex].pause();
+      }
+      isSpokenCueActive = false;
+      updateUI();
+    }
+
+    function jumpToPhase(index) {
+      if (index < 0 || index >= phases.length) return;
+      if (phaseAudioClips[currentPhaseIndex]) {
+        phaseAudioClips[currentPhaseIndex].pause();
+      }
+      currentPhaseIndex = index;
+      phaseTimeRemaining = phases[index].durationSeconds;
+      secondsSinceLastSpokenReminder = 0;
+
+      if (isRunning) {
+        playActivePhaseAudioClip();
+      } else {
+        isSpokenCueActive = false;
+      }
+      updateUI();
+    }
+
+    btnTogglePlay.onclick = () => {
+      if (isRunning) pauseSession();
+      else playSession();
+    };
+
+    btnPrevSection.onclick = () => {
+      if (currentPhaseIndex > 0) jumpToPhase(currentPhaseIndex - 1);
+      else {
+        phaseTimeRemaining = phases[0].durationSeconds;
+        updateUI();
+      }
+    };
+
+    btnForwardSection.onclick = () => {
+      if (currentPhaseIndex < phases.length - 1) jumpToPhase(currentPhaseIndex + 1);
+    };
+
+    btnRepeatInstructionNow.onclick = () => {
+      playActivePhaseAudioClip();
+    };
+
+    btnRewind10.onclick = () => {
+      phaseTimeRemaining = Math.min(phases[currentPhaseIndex].durationSeconds, phaseTimeRemaining + 10);
+      updateUI();
+    };
+
+    btnForward10.onclick = () => {
+      if (phaseTimeRemaining > 10) {
+        phaseTimeRemaining -= 10;
+      } else {
+        if (currentPhaseIndex < phases.length - 1) {
+          jumpToPhase(currentPhaseIndex + 1);
+          return;
+        } else {
+          phaseTimeRemaining = 0;
+        }
+      }
+      updateUI();
+    };
+
+    btnResetSession.onclick = () => {
+      pauseSession();
+      jumpToPhase(0);
+      playButtonText.textContent = "Start Session";
+    };
+
+    btnLoopToggle.onclick = () => {
+      isLoopEnabled = !isLoopEnabled;
+      if (isLoopEnabled) {
+        loopToggleText.textContent = `Loop Cue: On (${loopIntervalSeconds}s)`;
+        loopStatusDot.className = "w-2 h-2 rounded-full bg-roseNeon-400 animate-pulse";
+      } else {
+        loopToggleText.textContent = "Loop Cue: Muted";
+        loopStatusDot.className = "w-2 h-2 rounded-full bg-slate-600";
+      }
+      updateUI();
+    };
+
+    btnAudioMute.onclick = () => {
+      isMuted = !isMuted;
+      Object.values(phaseAudioClips).forEach(a => { a.muted = isMuted; });
+      if (isMuted) {
+        iconVolUnmuted.classList.add('hidden');
+        iconVolMuted.classList.remove('hidden');
+      } else {
+        iconVolUnmuted.classList.remove('hidden');
+        iconVolMuted.classList.add('hidden');
+      }
+    };
+
+    function openCalibrator() {
+      calibPhaseList.innerHTML = '';
+      selLoopInterval.value = String(loopIntervalSeconds);
+
+      phases.forEach((p, idx) => {
+        const row = document.createElement('div');
+        row.className = "p-3 rounded-2xl bg-obsidian-950 border border-slate-800 space-y-2.5";
+        row.innerHTML = `
+          <div class="flex items-center justify-between text-xs font-bold text-slate-200">
+            <span>${p.title}</span>
+            <span class="statusBadge text-[10px] font-mono text-slate-400">
+              ${phaseAudioClips[idx] ? `✓ Audio Loaded (${p.spokenDuration}s)` : 'Audio Missing'}
+            </span>
+          </div>
+
+          <div class="flex items-center gap-3 text-xs font-mono">
+            <div>
+              <label class="text-[10px] text-slate-400 block mb-0.5">Phase Duration (Min)</label>
+              <input type="number" min="1" max="30" value="${p.durationMinutes}" class="inpDurationMin w-20 px-2 py-1 bg-obsidian-850 rounded border border-slate-700 text-center text-white" />
+            </div>
+            <div class="text-[11px] text-slate-400 pt-3">
+              Hold Window: <span class="lblHoldWindow text-rose-300">${formatMMSS(p.holdDuration || p.durationSeconds)}</span>
+            </div>
+          </div>
+
+          <div>
+            <label class="text-[10px] text-slate-400 block mb-0.5">Spoken Instruction Prompt</label>
+            <textarea rows="3" class="inpInstruction w-full px-2.5 py-1.5 bg-obsidian-850 rounded-xl border border-slate-700 text-xs text-slate-200 focus:border-roseNeon-400 outline-none">${p.instructionText}</textarea>
+          </div>
+
+          <div class="flex items-center justify-between pt-1">
+            <button class="btnRevoicePhase px-2.5 py-1 rounded-lg bg-roseNeon-600/30 hover:bg-roseNeon-600/50 text-rose-300 border border-roseNeon-500/40 text-[11px] font-semibold" data-index="${idx}">
+              🎙️ Re-Voice This Phase
+            </button>
+            <button class="btnTestPhaseAudio px-2.5 py-1 rounded-lg bg-obsidian-800 hover:bg-obsidian-750 text-slate-300 text-[11px]" data-index="${idx}">
+              ▶ Test Clip
+            </button>
+          </div>
+        `;
+
+        const inpDuration = row.querySelector('.inpDurationMin');
+        const inpInstruction = row.querySelector('.inpInstruction');
+        const statusBadge = row.querySelector('.statusBadge');
+        const lblHoldWindow = row.querySelector('.lblHoldWindow');
+        const btnRevoice = row.querySelector('.btnRevoicePhase');
+        const btnTest = row.querySelector('.btnTestPhaseAudio');
+
+        inpDuration.addEventListener('change', (e) => {
+          const newMin = Math.max(1, parseInt(e.target.value, 10) || 1);
+          p.durationMinutes = newMin;
+          p.durationSeconds = newMin * 60;
+          p.holdDuration = Math.max(0, p.durationSeconds - (p.spokenDuration || 0));
+          lblHoldWindow.textContent = formatMMSS(p.holdDuration);
+          localStorage.setItem('neural_protocol_phases_v8', JSON.stringify(phases));
+          updateUI();
+        });
+
+        inpInstruction.addEventListener('change', (e) => {
+          p.instructionText = e.target.value.trim();
+          localStorage.setItem('neural_protocol_phases_v8', JSON.stringify(phases));
+          statusBadge.textContent = "Text changed (Re-Voice needed)";
+          statusBadge.className = "statusBadge text-[10px] font-mono text-amber-400";
+        });
+
+        btnRevoice.onclick = async () => {
+          p.instructionText = inpInstruction.value.trim();
+          await generateModularPhaseAudio(idx, (msg) => {
+            statusBadge.textContent = msg;
+            statusBadge.className = "statusBadge text-[10px] font-mono text-rose-300";
+          });
+          lblHoldWindow.textContent = formatMMSS(p.holdDuration);
+        };
+
+        btnTest.onclick = () => {
+          const clip = phaseAudioClips[idx];
+          if (!clip) {
+            alert("No audio clip exists for this phase yet. Tap 'Re-Voice This Phase' first.");
+            return;
+          }
+          if (clip.paused) {
+            clip.currentTime = 0;
+            clip.play();
+            btnTest.textContent = "⏸ Stop";
+            clip.onended = () => { btnTest.textContent = "▶ Test Clip"; };
+          } else {
+            clip.pause();
+            btnTest.textContent = "▶ Test Clip";
+          }
+        };
+
+        calibPhaseList.appendChild(row);
+      });
+
+      calibrateModal.classList.remove('hidden');
+    }
+
+    btnOpenCalibrate.onclick = openCalibrator;
+    btnCloseCalibrate.onclick = () => calibrateModal.classList.add('hidden');
+
+    btnSaveConfig.onclick = () => {
+      loopIntervalSeconds = parseInt(selLoopInterval.value, 10) || 30;
+      localStorage.setItem('neural_loop_interval', loopIntervalSeconds);
+      loopToggleText.textContent = `Loop Cue: On (${loopIntervalSeconds}s)`;
+      localStorage.setItem('elevenlabs_api_key', inpElevenApiKey.value.trim());
+      localStorage.setItem('elevenlabs_voice_id', inpElevenVoiceId.value.trim());
+
+      localStorage.setItem('neural_protocol_phases_v8', JSON.stringify(phases));
+      calibrateModal.classList.add('hidden');
+      updateUI();
+    };
+
+    btnResetDefaults.onclick = () => {
+      phases = JSON.parse(JSON.stringify(DEFAULT_PHASES));
+      localStorage.setItem('neural_protocol_phases_v8', JSON.stringify(phases));
+      openCalibrator();
+      updateUI();
+    };
+
+    window.addEventListener('DOMContentLoaded', () => {
+      updateUI();
+    });
+  </script>
+</body>
+</html>
+<!-- Mobile App / Standalone Display Meta Tags -->
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Protocol">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#000000">
